@@ -267,4 +267,31 @@ body.nav-open {
   overflow: hidden;
   position: fixed;
   width: 100%;
+  top: var(--scroll-top, 0);
+}
+
+/* ==========================================================================
+   Mobile Touch Optimizations
+   ========================================================================== */
+
+/* Ensure adequate tap targets on mobile */
+@media (max-width: 767px) {
+  /* Add bottom padding so sticky dock doesn't cover content */
+  main {
+    padding-bottom: 72px;
+  }
+
+  /* Improve touch responsiveness */
+  a, button {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Safe area support for notched devices */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  @media (max-width: 767px) {
+    main {
+      padding-bottom: calc(72px + env(safe-area-inset-bottom));
+    }
+  }
 }

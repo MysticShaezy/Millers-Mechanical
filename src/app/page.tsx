@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import CinematicHero from "@/components/sections/CinematicHero";
-import TrustStrip from "@/components/sections/TrustStrip";
 import ServiceGrid from "@/components/sections/ServiceGrid";
 import FeaturesSection from "@/components/sections/FeaturesSection";
 import Testimonials from "@/components/sections/Testimonials";
@@ -18,7 +17,7 @@ export default function Home() {
   return (
     <>
       <CinematicHero />
-      <TrustStrip />
+      {/* TrustStrip is now integrated into the hero as Phase 3 */}
       <ServiceGrid />
       <FeaturesSection />
       <Testimonials />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { X, Phone } from "lucide-react";
@@ -16,19 +16,37 @@ interface MobileNavProps {
 export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const navRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  // Only render portal after client-side mount to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Focus trap and body scroll lock
   useEffect(() => {
     if (isOpen) {
+      const scrollY = window.scrollY;
+      document.body.style.setProperty("--scroll-top", `-${scrollY}px`);
       document.body.classList.add("nav-open");
       // Focus the close button when opening
       setTimeout(() => closeButtonRef.current?.focus(), 100);
     } else {
+      const scrollY = document.body.style.getPropertyValue("--scroll-top");
       document.body.classList.remove("nav-open");
+      document.body.style.removeProperty("--scroll-top");
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || "0") * -1);
+      }
     }
 
     return () => {
+      const scrollY = document.body.style.getPropertyValue("--scroll-top");
       document.body.classList.remove("nav-open");
+      document.body.style.removeProperty("--scroll-top");
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || "0") * -1);
+      }
     };
   }, [isOpen]);
 
@@ -66,8 +84,8 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, handleKeyDown]);
 
-  // Don't render on server
-  if (typeof window === "undefined") return null;
+  // Don't render on server or before mount
+  if (!mounted) return null;
 
   return createPortal(
     <>

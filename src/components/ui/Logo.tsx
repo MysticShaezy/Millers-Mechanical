@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 
 interface LogoProps {
@@ -22,19 +21,9 @@ export default function Logo({
       className={`flex items-center gap-3 group ${className}`}
       aria-label="Miller Engines & Mechanical — Home"
     >
-      {/* Logo image — swap src to /assets/logo.png when available */}
-      <div className="relative w-10 h-10 flex-shrink-0">
-        <Image
-          src="/assets/logo.png"
-          alt="Miller Engines & Mechanical logo"
-          width={40}
-          height={40}
-          className="object-contain"
-          onError={(e) => {
-            // Fallback: hide broken image, text logo will remain
-            (e.target as HTMLImageElement).style.display = "none";
-          }}
-        />
+      {/* Brand icon mark */}
+      <div className="relative w-10 h-10 flex-shrink-0 bg-primary rounded-lg flex items-center justify-center">
+        <span className="text-white font-black text-lg leading-none">ME</span>
       </div>
 
       <div className="relative overflow-hidden font-bold text-xl tracking-tighter py-1">

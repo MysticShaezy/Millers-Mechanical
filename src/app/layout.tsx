@@ -1,9 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
 import { siteConfig, getLocalBusinessSchema } from "@/data/site";
-import TopBar from "@/components/layout/TopBar";
-import Header from "@/components/layout/Header";
+import NavShell from "@/components/layout/NavShell";
 import Footer from "@/components/layout/Footer";
 import SkipToContent from "@/components/ui/SkipToContent";
 
@@ -57,6 +56,14 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: "#0a0a0a",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -66,21 +73,19 @@ export default function RootLayout({
 
   return (
     <html lang="en" className={`${montserrat.variable} h-full`}>
-      <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-      </head>
       <body className="min-h-full flex flex-col antialiased">
         <SkipToContent />
-        <TopBar />
-        <Header />
+        <NavShell />
         <main id="main-content" className="flex-1">
           {children}
         </main>
         <Footer />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
       </body>
     </html>
   );
 }
+

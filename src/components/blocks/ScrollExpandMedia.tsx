@@ -1,144 +1,294 @@
 "use client";
 
-import { useRef, useState, useEffect, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type TouchEvent,
+  type WheelEvent,
+} from "react";
 import Image from "next/image";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 
 interface ScrollExpandMediaProps {
+  mediaType?: "video" | "image";
   mediaSrc: string;
+  posterSrc?: string;
+  bgImageSrc: string;
   title?: string;
-  subtitle?: string;
+  date?: string;
+  scrollToExpand?: string;
+  textBlend?: boolean;
+  onProgressChange?: (progress: number) => void;
   children?: ReactNode;
 }
 
-/**
- * Cinematic scroll-expanding hero.
- *
- * ARCHITECTURE FIX: This component uses a tall scrollable container (300vh)
- * and framer-motion's useScroll to calculate progress based on the component's
- * position in the viewport. NO global scroll hijacking (window.scrollTo).
- * Users can scroll naturally past the component at any time.
- */
-export default function ScrollExpandMedia({
+const ScrollExpandMedia = ({
+  mediaType = "video",
   mediaSrc,
+  bgImageSrc,
   title,
-  subtitle,
+  date,
+  scrollToExpand,
+  textBlend,
+  onProgressChange,
   children,
-}: ScrollExpandMediaProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isMobile, setIsMobile] = useState(false);
+}: ScrollExpandMediaProps) => {
+  const [scrollProgress, setScrollProgress] = useState<number>(0);
+  const [showContent, setShowContent] = useState<boolean>(false);
+  const [mediaFullyExpanded, setMediaFullyExpanded] = useState<boolean>(false);
+  const [touchStartY, setTouchStartY] = useState<number>(0);
+  const [isMobileState, setIsMobileState] = useState<boolean>(false);
+
+  const sectionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    setScrollProgress(0);
+    setShowContent(false);
+    setMediaFullyExpanded(false);
+  }, [mediaType]);
+
+  // Notify parent of scroll progress changes
+  useEffect(() => {
+    onProgressChange?.(scrollProgress);
+  }, [scrollProgress, onProgressChange]);
+
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (mediaFullyExpanded && e.deltaY < 0 && window.scrollY <= 5) {
+        setMediaFullyExpanded(false);
+        e.preventDefault();
+      } else if (!mediaFullyExpanded) {
+        e.preventDefault();
+        const scrollDelta = e.deltaY * 0.0009;
+        const newProgress = Math.min(
+          Math.max(scrollProgress + scrollDelta, 0),
+          1
+        );
+        setScrollProgress(newProgress);
+
+        if (newProgress >= 1) {
+          setMediaFullyExpanded(true);
+          setShowContent(true);
+        } else if (newProgress < 0.75) {
+          setShowContent(false);
+        }
+      }
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      setTouchStartY(e.touches[0].clientY);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!touchStartY) return;
+      const touchY = e.touches[0].clientY;
+      const deltaY = touchStartY - touchY;
+      if (mediaFullyExpanded && deltaY < -20 && window.scrollY <= 5) {
+        setMediaFullyExpanded(false);
+        e.preventDefault();
+      } else if (!mediaFullyExpanded) {
+        e.preventDefault();
+        const scrollFactor = deltaY < 0 ? 0.008 : 0.005;
+        const scrollDelta = deltaY * scrollFactor;
+        const newProgress = Math.min(
+          Math.max(scrollProgress + scrollDelta, 0),
+          1
+        );
+        setScrollProgress(newProgress);
+        if (newProgress >= 1) {
+          setMediaFullyExpanded(true);
+          setShowContent(true);
+        } else if (newProgress < 0.75) {
+          setShowContent(false);
+        }
+        setTouchStartY(touchY);
+      }
+    };
+
+    const handleTouchEnd = (): void => {
+      setTouchStartY(0);
+    };
+
+    const handleScroll = (): void => {
+      if (!mediaFullyExpanded) {
+        window.scrollTo(0, 0);
+      }
+    };
+
+    window.addEventListener(
+      "wheel",
+      handleWheel as unknown as EventListener,
+      { passive: false }
+    );
+    window.addEventListener("scroll", handleScroll as EventListener);
+    window.addEventListener(
+      "touchstart",
+      handleTouchStart as unknown as EventListener,
+      { passive: false }
+    );
+    window.addEventListener(
+      "touchmove",
+      handleTouchMove as unknown as EventListener,
+      { passive: false }
+    );
+    window.addEventListener("touchend", handleTouchEnd as EventListener);
+
+    return () => {
+      window.removeEventListener(
+        "wheel",
+        handleWheel as unknown as EventListener
+      );
+      window.removeEventListener("scroll", handleScroll as EventListener);
+      window.removeEventListener(
+        "touchstart",
+        handleTouchStart as unknown as EventListener
+      );
+      window.removeEventListener(
+        "touchmove",
+        handleTouchMove as unknown as EventListener
+      );
+      window.removeEventListener("touchend", handleTouchEnd as EventListener);
+    };
+  }, [scrollProgress, mediaFullyExpanded, touchStartY]);
+
+  useEffect(() => {
+    const checkIfMobile = (): void => {
+      setIsMobileState(window.innerWidth < 768);
+    };
+    checkIfMobile();
+    window.addEventListener("resize", checkIfMobile);
+    return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
 
-  // Track scroll progress within the container
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end start"],
-  });
-
-  // Map scroll progress to visual properties
-  // Phase 1 (0-0.5): Media expands from centered card to full-width
-  // Phase 2 (0.5-1.0): Content fades in, title moves out
-  const mediaScale = useTransform(scrollYProgress, [0, 0.4], [0.45, 1]);
-  const mediaBorderRadius = useTransform(scrollYProgress, [0, 0.35], [24, 0]);
-  const overlayOpacity = useTransform(scrollYProgress, [0, 0.3], [0.6, 0.3]);
-  const titleOpacity = useTransform(scrollYProgress, [0.3, 0.55], [1, 0]);
-  const titleY = useTransform(scrollYProgress, [0.3, 0.55], [0, -80]);
-  const contentOpacity = useTransform(scrollYProgress, [0.45, 0.65], [0, 1]);
-  const contentY = useTransform(scrollYProgress, [0.45, 0.65], [60, 0]);
-  const scrollHintOpacity = useTransform(scrollYProgress, [0, 0.1], [1, 0]);
-
+  const mediaWidth = 300 + scrollProgress * (isMobileState ? 650 : 1250);
+  const mediaHeight = 400 + scrollProgress * (isMobileState ? 200 : 400);
+  const textTranslateX = scrollProgress * (isMobileState ? 180 : 150);
   const firstWord = title ? title.split(" ")[0] : "";
   const restOfTitle = title ? title.split(" ").slice(1).join(" ") : "";
 
   return (
-    <div ref={containerRef} className="relative" style={{ height: "300vh" }}>
-      {/* Sticky viewport — stays in view while user scrolls the 300vh container */}
-      <div className="sticky top-0 h-screen w-full overflow-hidden bg-black">
-        {/* Expanding media */}
-        <motion.div
-          className="absolute inset-0 w-full h-full overflow-hidden"
-          style={{
-            scale: isMobile ? 1 : mediaScale,
-            borderRadius: mediaBorderRadius,
-          }}
-        >
-          <Image
-            src={mediaSrc}
-            alt={title || "Hero image"}
-            fill
-            className="object-cover"
-            priority
-            sizes="100vw"
-            quality={85}
-          />
+    <div
+      ref={sectionRef}
+      className="transition-colors duration-700 ease-in-out overflow-x-hidden"
+    >
+      <section className="relative flex flex-col items-center justify-start min-h-[100dvh] bg-black">
+        <div className="relative w-full flex flex-col items-center min-h-[100dvh]">
+          {/* Background image — fades out as media expands */}
           <motion.div
-            className="absolute inset-0 bg-black"
-            style={{ opacity: overlayOpacity }}
-          />
-        </motion.div>
-
-        {/* Title text — split words for cinematic effect */}
-        {title && (
-          <motion.div
-            className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none mix-blend-difference"
-            style={{ opacity: titleOpacity, y: titleY }}
+            className="absolute inset-0 z-0 h-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 - scrollProgress }}
+            transition={{ duration: 0.1 }}
           >
-            <h1 className="sr-only">{title}</h1>
-            <span
-              className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-bold text-white tracking-tighter"
-              aria-hidden="true"
-            >
-              {firstWord}
-            </span>
-            {restOfTitle && (
-              <span
-                className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-bold text-white tracking-tighter"
-                aria-hidden="true"
-              >
-                {restOfTitle}
-              </span>
-            )}
-            {subtitle && (
-              <span className="text-sm md:text-base uppercase tracking-[0.3em] text-gray-300 mt-4">
-                {subtitle}
-              </span>
-            )}
-          </motion.div>
-        )}
-
-        {/* Scroll hint */}
-        <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 pointer-events-none"
-          style={{ opacity: scrollHintOpacity }}
-        >
-          <span className="text-xs uppercase tracking-[0.25em] text-gray-400 font-medium">
-            Scroll to explore
-          </span>
-          <div className="w-5 h-8 border-2 border-gray-400 rounded-full flex justify-center pt-1.5">
-            <motion.div
-              className="w-1 h-1.5 bg-white rounded-full"
-              animate={{ y: [0, 8, 0] }}
-              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+            <Image
+              src={bgImageSrc}
+              alt="Background"
+              width={1920}
+              height={1080}
+              className="w-screen h-screen"
+              style={{ objectFit: "cover", objectPosition: "center" }}
+              priority
             />
-          </div>
-        </motion.div>
-
-        {/* Children content — fades in as hero expands */}
-        {children && (
-          <motion.div
-            className="absolute inset-0 flex items-center justify-center z-10"
-            style={{ opacity: contentOpacity, y: contentY }}
-          >
-            {children}
+            <div className="absolute inset-0 bg-black/10" />
           </motion.div>
-        )}
-      </div>
+
+          <div className="container mx-auto flex flex-col items-center justify-start relative z-10">
+            <div className="flex flex-col items-center justify-center w-full h-[100dvh] relative">
+              {/* Expanding media card */}
+              <div
+                className="absolute z-0 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 transition-none rounded-2xl"
+                style={{
+                  width: `${mediaWidth}px`,
+                  height: `${mediaHeight}px`,
+                  maxWidth: "95vw",
+                  maxHeight: "85vh",
+                  boxShadow: `0px 0px 50px rgba(0, 0, 0, ${0.3 * scrollProgress})`,
+                  backgroundColor: "transparent",
+                  overflow: "hidden",
+                }}
+              >
+                {mediaType === "image" && (
+                  <div
+                    className="relative w-full h-full"
+                    style={{ opacity: scrollProgress }}
+                  >
+                    <Image
+                      src={mediaSrc}
+                      alt={title || "Media content"}
+                      width={1280}
+                      height={720}
+                      className="w-full h-full object-cover rounded-xl"
+                    />
+                    <div className="absolute inset-0 bg-black/10 rounded-xl" />
+                  </div>
+                )}
+
+                {/* Date and scroll prompt */}
+                <div className="flex flex-col items-center text-center relative z-10 mt-4 transition-none">
+                  {date && (
+                    <p
+                      className="text-2xl text-blue-200"
+                      style={{
+                        transform: `translateX(-${textTranslateX}vw)`,
+                      }}
+                    >
+                      {date}
+                    </p>
+                  )}
+                  {scrollToExpand && (
+                    <p
+                      className="text-blue-200 font-medium text-center tracking-widest uppercase"
+                      style={{
+                        transform: `translateX(${textTranslateX}vw)`,
+                      }}
+                    >
+                      {scrollToExpand}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Title text — splits as scroll progresses */}
+              <div
+                className={`flex items-center justify-center text-center gap-4 w-full relative z-10 transition-none flex-col ${
+                  textBlend ? "mix-blend-difference" : "mix-blend-normal"
+                }`}
+              >
+                <motion.h2
+                  className="text-6xl md:text-8xl lg:text-9xl font-bold text-white transition-none"
+                  style={{
+                    transform: `translateX(-${textTranslateX}vw)`,
+                  }}
+                >
+                  {firstWord}
+                </motion.h2>
+                <motion.h2
+                  className="text-6xl md:text-8xl lg:text-9xl font-bold text-center text-white transition-none"
+                  style={{
+                    transform: `translateX(${textTranslateX}vw)`,
+                  }}
+                >
+                  {restOfTitle}
+                </motion.h2>
+              </div>
+            </div>
+
+            {/* Children content — fades in after expansion */}
+            <motion.section
+              className="flex flex-col w-full px-4 py-10 md:px-16 lg:py-20"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: showContent ? 1 : 0 }}
+              transition={{ duration: 0.7 }}
+            >
+              {children}
+            </motion.section>
+          </div>
+        </div>
+      </section>
     </div>
   );
-}
+};
+
+export default ScrollExpandMedia;

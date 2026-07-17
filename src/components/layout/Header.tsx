@@ -32,11 +32,11 @@ export default function Header() {
             : "bg-white border-b border-border"
         )}
       >
-        <div className="container mx-auto px-4 h-20 flex items-center justify-between">
+        <div className="container mx-auto px-4 h-16 md:h-20 flex items-center justify-between">
           <Logo variant="dark" />
 
           {/* Desktop navigation */}
-          <nav className="hidden md:flex items-center gap-8" aria-label="Main navigation">
+          <nav className="hidden md:flex items-center gap-6 lg:gap-8" aria-label="Main navigation">
             {mainNavigation.map((item) => (
               <Link
                 key={item.href}
@@ -49,16 +49,16 @@ export default function Header() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-4">
-            {/* Phone CTA — desktop */}
+          <div className="flex items-center gap-3 md:gap-4">
+            {/* Phone CTA — visible on tablet+ */}
             <a
               href={`tel:${siteConfig.phone}`}
-              className="hidden lg:flex items-center gap-2 text-primary font-bold hover:text-primary-hover transition-colors min-h-[44px]"
+              className="hidden md:flex items-center gap-2 text-primary font-bold hover:text-primary-hover transition-colors min-h-[44px]"
               onClick={() => analytics.phoneClick()}
               aria-label={`Call us at ${siteConfig.phoneFormatted}`}
             >
               <Phone size={20} aria-hidden="true" />
-              <span>{siteConfig.phoneFormatted}</span>
+              <span className="hidden lg:inline">{siteConfig.phoneFormatted}</span>
             </a>
 
             {/* Mobile menu button */}

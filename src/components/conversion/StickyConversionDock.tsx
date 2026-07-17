@@ -29,8 +29,8 @@ export default function StickyConversionDock() {
           : "translate-y-full opacity-0 pointer-events-none"
       )}
     >
-      {/* Mobile — full-width bar */}
-      <div className="md:hidden flex bg-brand-black/95 backdrop-blur-md border-t border-border-dark">
+      {/* Mobile — full-width bar with safe area support */}
+      <div className="md:hidden flex flex-wrap bg-brand-black/95 backdrop-blur-md border-t border-border-dark" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <a
           href={`tel:${siteConfig.phone}`}
           onClick={() => analytics.ctaClick("dock_call_mobile")}

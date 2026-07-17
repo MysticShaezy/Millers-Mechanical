@@ -1,37 +1,33 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { motion, useMotionValue, useTransform } from "framer-motion";
 import Image from "next/image";
 import ScrollExpandMedia from "@/components/blocks/ScrollExpandMedia";
-import HeroBannerTransition from "@/components/sections/HeroBannerTransition";
 import HeroPills from "@/components/sections/HeroPills";
 import MobileNav from "@/components/layout/MobileNav";
 
 /**
- * Cinematic hero scroll sequence — restructured phases.
+ * Cinematic hero — fixed viewport with content scrolling over.
+ *
+ * Architecture:
+ *   LAYER 1 (fixed): Nav pills + workshop image + logo — never moves.
+ *   SPACER:          An empty div (100vh) pushes scrollable content below the fold.
+ *   LAYER 2 (flow):  Red banner + page content scroll naturally over the hero.
  *
  * Phase 1 (ScrollExpandMedia, custom scroll lock):
- *   Workshop image expands from card → full viewport.
- *   Text ("MILLER" / "ENGINES") splits apart.
- *   Logo fades/scales in SIMULTANEOUSLY (synced to expandProgress).
- *   Floating hero pills visible throughout.
+ *   Workshop expands from card → full viewport.
+ *   Text splits. Logo fades/scales in simultaneously.
+ *   Pills visible throughout.
  *
- * Phase 2 (window.scrollY 0→400):
- *   Red services marquee banner parallaxes upward into frame.
- *   Backdrop gradually darkens.
- *
- * Phase 3 (window.scrollY 400→600):
- *   Hero pills fade out (merge into NavShell's sticky bar).
- *   After ~500px scrollY, NavShell becomes visible.
- *
- * The hero viewport stays sticky while the scroll runway is consumed,
- * then scrolls away naturally as page content takes over.
+ * After Phase 1 completes, native scroll takes over.
+ * The red banner and page content scroll UP over the fixed hero.
+ * Pills fade out as content covers the hero, merging into NavShell.
  */
 export default function CinematicHero() {
-  const scrollY = useMotionValue(0);
   const [expandProgress, setExpandProgress] = useState(0);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [pillProgress, setPillProgress] = useState(0);
+  const [scrollExtraScale, setScrollExtraScale] = useState(0);
 
   // Reset scroll on mount
   useEffect(() => {
@@ -40,53 +36,40 @@ export default function CinematicHero() {
     window.dispatchEvent(resetEvent);
   }, []);
 
-  // Track window scroll for Phase 2 & 3
+  // Track scroll for pill fade-out AND Phase B logo zoom
   useEffect(() => {
-    const onScroll = () => scrollY.set(window.scrollY);
+    const onScroll = () => {
+      const y = window.scrollY;
+      const vh = window.innerHeight;
+      // Pills stay visible until the red banner reaches the TOP of the viewport.
+      // Banner's top edge hits the top of the viewport exactly at scrollY = vh.
+      // Start fading out exactly at that moment over a quick 50px scroll.
+      const fadeStart = vh;
+      const progress = Math.min(Math.max((y - fadeStart) / 50, 0), 1);
+      setPillProgress(progress);
+      // Phase B: logo continues scaling as banner scrolls up (scrollY 0→vh)
+      setScrollExtraScale(Math.min(y / Math.max(vh, 1), 1) * 0.25);
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [scrollY]);
+  }, []);
 
   // Callback from ScrollExpandMedia — drives logo opacity + scale
   const handleProgressChange = useCallback((progress: number) => {
     setExpandProgress(progress);
   }, []);
 
-  // ── Logo: synced to expansion progress (Phase 1) ─────────────────────
+  // ── Logo: Phase A (expansion) + Phase B (scroll zoom) ─────────────────
   const logoOpacity = expandProgress;
-  const logoScale = 0.3 + expandProgress * 0.7;
-
-  // ── Phase 2: Banner parallax — scrollY 0→400px ───────────────────────
-  const phase2Progress = useTransform(scrollY, (v: number) =>
-    Math.min(Math.max(v / 400, 0), 1)
-  );
-  const bannerY = useTransform(
-    phase2Progress,
-    (p: number) => `${(1 - p) * 100}%`
-  );
-  const backdropOpacity = useTransform(
-    phase2Progress,
-    (p: number) => p * 0.7
-  );
-
-  // ── Phase 3: Pill merge — scrollY 400→600px ──────────────────────────
-  const pillMergeProgress = useTransform(scrollY, (v: number) =>
-    Math.min(Math.max((v - 400) / 200, 0), 1)
-  );
-  const [pillProgress, setPillProgress] = useState(0);
-  useEffect(() => {
-    const unsubscribe = pillMergeProgress.on("change", setPillProgress);
-    return unsubscribe;
-  }, [pillMergeProgress]);
+  // Phase A: 0.3→1.0 during workshop expansion
+  // Phase B: continues 1.0→2.5 as user scrolls and banner covers hero
+  const logoScale = 0.3 + expandProgress * 0.7 + scrollExtraScale;
 
   return (
-    <div
-      className="relative w-full"
-      style={{ height: "calc(100dvh + 600px)" }}
-    >
-      {/* ── Sticky viewport ──────────────────────────────────────────── */}
-      <div className="sticky top-0 z-[1] h-dvh w-full overflow-hidden bg-black">
-        {/* Phase 1: Workshop expansion + text split */}
+    <>
+      {/* ── LAYER 1: Fixed hero — never moves ──────────────────────────── */}
+      <div className="fixed top-0 left-0 right-0 h-dvh z-0 overflow-hidden bg-black">
+        {/* Workshop expansion + text split */}
         <div className="absolute inset-0 z-0">
           <ScrollExpandMedia
             mediaType="image"
@@ -100,20 +83,14 @@ export default function CinematicHero() {
           />
         </div>
 
-        {/* Phase 2: Backdrop darken */}
-        <motion.div
-          className="absolute inset-0 z-[12] bg-black pointer-events-none"
-          style={{ opacity: backdropOpacity }}
-        />
-
-        {/* Phase 1 (synced): Logo reveal — scales/fades with expansion */}
+        {/* Logo reveal — scales/fades with expansion */}
         <div
           className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none"
           style={{ opacity: logoOpacity }}
         >
           <div
-            style={{ transform: `scale(${logoScale})` }}
-            className="w-[70vw] max-w-[600px] flex flex-col items-center gap-4"
+            className="w-[70vw] flex flex-col items-center gap-4"
+            style={{ transform: `scale(${logoScale})`, maxWidth: "min(600px, 85vw)" }}
           >
             <Image
               src="/assets/transparent-logo-white-removebg-preview.png"
@@ -126,26 +103,22 @@ export default function CinematicHero() {
           </div>
         </div>
 
-        {/* Floating hero pills — above everything except modals */}
+        {/* Floating hero pills */}
         <HeroPills
           progress={pillProgress}
+          expandProgress={expandProgress}
           onMobileMenuOpen={() => setIsMobileNavOpen(true)}
         />
-
-        {/* Phase 2: Red banner parallax — slides up from below */}
-        <motion.div
-          className="absolute left-0 right-0 bottom-0 z-[30]"
-          style={{ y: bannerY }}
-        >
-          <HeroBannerTransition />
-        </motion.div>
       </div>
+
+      {/* ── SPACER: pushes scrollable content below the viewport ──────── */}
+      <div className="h-dvh" aria-hidden="true" />
 
       {/* Mobile nav drawer (triggered by pill hamburger) */}
       <MobileNav
         isOpen={isMobileNavOpen}
         onClose={() => setIsMobileNavOpen(false)}
       />
-    </div>
+    </>
   );
 }

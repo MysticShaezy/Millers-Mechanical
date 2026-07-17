@@ -35,9 +35,10 @@ export default function NavShell() {
     if (!isHomepage) return;
 
     const onScroll = () => {
-      // Nav appears after the hero scroll runway (~600px past the fold)
-      // This aligns with the pills fading out at the same threshold
-      setNavVisible(window.scrollY > 500);
+      // Nav appears when the red banner reaches the top of the viewport.
+      // The spacer is 100vh, so scrollY >= vh means the scrollable content
+      // (starting with the banner) has reached the top.
+      setNavVisible(window.scrollY >= window.innerHeight);
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });

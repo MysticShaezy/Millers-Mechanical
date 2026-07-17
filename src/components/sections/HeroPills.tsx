@@ -9,6 +9,8 @@ import { analytics } from "@/lib/analytics";
 interface HeroPillsProps {
   /** 0 = fully visible, 1 = fully hidden (merge transition) */
   progress: number;
+  /** 0→1 as workshop image expands — pills glide upward to stay in black padding */
+  expandProgress?: number;
   /** Trigger to open the mobile nav drawer */
   onMobileMenuOpen: () => void;
 }
@@ -24,10 +26,14 @@ interface HeroPillsProps {
  */
 export default function HeroPills({
   progress,
+  expandProgress = 0,
   onMobileMenuOpen,
 }: HeroPillsProps) {
   const opacity = Math.max(1 - progress * 2, 0); // fully gone by progress 0.5
-  const translateY = -(progress * 24);
+  // Combine: glide up ~16px during expansion + slide up further during merge
+  const expandOffset = expandProgress * -16;
+  const mergeOffset = -(progress * 24);
+  const translateY = expandOffset + mergeOffset;
 
   return (
     <div

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import CinematicHero from "@/components/sections/CinematicHero";
+import HeroBannerTransition from "@/components/sections/HeroBannerTransition";
 import ServiceGrid from "@/components/sections/ServiceGrid";
 import FeaturesSection from "@/components/sections/FeaturesSection";
 import Testimonials from "@/components/sections/Testimonials";
@@ -16,13 +17,24 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <>
+      {/* Fixed hero — stays locked behind everything */}
       <CinematicHero />
-      {/* TrustStrip is now integrated into the hero as Phase 3 */}
-      <ServiceGrid />
-      <FeaturesSection />
-      <Testimonials />
-      <QuoteWizard />
-      <ContactFormSection />
+
+      {/* ── Scrollable content — scrolls OVER the fixed hero ──────────── */}
+      <div className="relative z-10">
+        {/* Red banner is the first piece of scrolling content */}
+        <HeroBannerTransition />
+
+        {/* Page sections follow naturally */}
+        <div className="bg-background">
+          <ServiceGrid />
+          <FeaturesSection />
+          <Testimonials />
+          <QuoteWizard />
+          <ContactFormSection />
+        </div>
+      </div>
+
       <StickyConversionDock />
     </>
   );
